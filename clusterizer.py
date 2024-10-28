@@ -52,7 +52,11 @@ class Clusterizer:
             data = pd.merge(data, last_df[['id', 'species', 'ancestor']], on=['id', 'ancestor'], how='left')
             # as novas populações são do mesmo cluster (espécie) do ancestra
             new_pop_ancestor = data[data['species'].isnull()]['ancestor']
-            new_pop_ancestor_species = last_df.loc[last_df['id'].isin(new_pop_ancestor), 'species']
+
+            # Obtém as espécies dos ancestrais de last_df, associando o índice correto
+            new_pop_ancestor_species = last_df.set_index('id').loc[new_pop_ancestor, 'species']
+
+            # Atribui as espécies aos nulos de 'data' conforme o valor de 'ancestor'
             data.loc[data['species'].isnull(), 'species'] = new_pop_ancestor_species.values
             
         else:
