@@ -36,7 +36,7 @@ class Clusterizer:
         self.current_df.columns = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
 
         self.current_df_indexes = pd.read_csv(f'pops3/{self.files_index[timestep]}', sep='\t', header=None)
-        self.current_df_indexes.columns = ['ancestral', 'id']
+        self.current_df_indexes.columns = ['ancestor', 'id']
 
         self.current_df['id'] = self.current_df_indexes['id']
         self.current_df['ancestor'] = self.current_df_indexes['ancestor']
@@ -49,9 +49,11 @@ class Clusterizer:
 
         if last_df is not None:
             # Populações de mesmo índice receberão o mesmo cluster do timestep anterior
-            data = pd.merge(data, last_df[['id', 'species', 'ancestor']], on='id', how='left')
+            data = pd.merge(data, last_df[['id', 'species', 'ancestor']], on=['id', 'ancestor'], how='left')
             # as novas populações são do mesmo cluster (espécie) do ancestra
-            data['species'] = data['species'].fillna(data['ancestor'])
+            new_pop_ancestor = data[data['species'].isnull()]['ancestor']
+            new_pop_ancestor_species = last_df.loc[last_df['id'].isin(new_pop_ancestor), 'species']
+            data.loc[data['species'].isnull(), 'species'] = new_pop_ancestor_species.values
             
         else:
             data['species'] = -1
@@ -59,7 +61,7 @@ class Clusterizer:
         # agrupar por espécie
         for i in data['species'].unique():
             group = data.loc[data['species'] == i]
-            group = group.drop(columns=['species', 'id'])
+            group = group.drop(columns=['species', 'id', 'ancestor'])
             species = np.array(dbscan.fit_predict(group))
             species = species + self.species_len
 
@@ -78,6 +80,7 @@ class Clusterizer:
 
             self._load_data(i)
             self.current_df = self._agroup_species(self.current_df)
+            print(f'Número de espécies {len(self.current_df["species"].unique())}')
             self.dfs_per_timestep.append(self.current_df)
 
     def animate_clusters(self, save_as="clusters_animation.gif"):
